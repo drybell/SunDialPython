@@ -36,4 +36,7 @@ Equatorial coordinates
 can be converted to equatorial coord system using `_epsilon`, or the 
 obliquity of the ecliptic, also known as *axial tilt*
 
-`_alpha` = arctan(cos(_epsilon)tan())
+`_alpha` = arctan(cos(`_epsilon`)tan())
+
+## Results of Converting to Rectangular Coordinates
+![test1results](./images/test1results.png)
