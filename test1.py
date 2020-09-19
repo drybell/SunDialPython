@@ -1,12 +1,14 @@
 ### First attempt at calculating position of sun 
 ## Daniel Ryaboshapka
 
-from math import cos, sin, atan2, asin, atan, radians
+from math import cos, sin, atan2, asin, atan, radians, degrees, sqrt, acos
 import numpy as np
 import datetime
 from jdcal import gcal2jd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+
+import geocoder
 
 # # Definitions from [wikipedia](https://en.wikipedia.org/wiki/Position_of_the_Sun#:~:text=The%20position%20of%20the%20Sun,circular%20path%20called%20the%20ecliptic.)
 
@@ -57,6 +59,8 @@ from mpl_toolkits.mplot3d import Axes3D
 # 	else: 
 # 		return n
 
+#_delta =arcsin(sin(-23.44))* sin(_lambda)]
+
 
 def position_of_sun(JD, method="ecliptic"):
 	n        = JD - 2451545
@@ -78,17 +82,47 @@ def position_of_sun(JD, method="ecliptic"):
 		Y = R * cos(_epsilon) * sin(_lambda)
 		Z = R * sin(_epsilon) * sin(_lambda)
 		return X, Y, Z
+	
+	elif method == "declination":
+		return degrees(asin(sin(radians(-23.44)) * sin(_lambda)))
 
 # https://stackoverflow.com/questions/13943062/extract-day-of-year-and-
 #julian-day-from-a-string-date#:~:text=To%20get%20the%20Julian%20day,
 #in%20the%20proleptic%20Gregorian%20calendar.
-def Julian_Date(s):
-	fmt = '%Y.%m.%d'
-	dt  = datetime.datetime.strptime(s, fmt)
-	return sum(gcal2jd(dt.year, dt.month, dt.day))
 
-today    = datetime.date.today().strftime('%Y.%m.%d')
-jd_today = Julian_Date(today)
+# Add current time as well and convert the seconds since midnight to 
+# the day fraction for real sun position
+def Julian_Date(s, s2):
+	fmt = '%Y.%m.%d'
+	second_fmt = '%Y.%m.%d.%H:%M:%S'
+	dt  = datetime.datetime.strptime(s, fmt)
+	dt2 = datetime.datetime.strptime(s2, second_fmt)
+
+	total_secs = dt2.hour * 3600 + dt2.minute * 60 + dt2.second
+	real_day = total_secs/86400
+
+	jd = int(sum(gcal2jd(dt.year, dt.month, real_day)))
+
+	return jd + real_day
+
+def conv_lat_long_to_rect_coords(lat, lon):
+	# R = 6371008.7714 # earth mean radius
+	x = cos(radians(lat)) * cos(radians(lon))
+	y = cos(radians(lat)) * sin(radians(lon))
+	z = sin(radians(lat))
+	return x,y,z
+
+def angle_between_points(p1, p2): 
+	x, y, z    = p1
+	x2, y2, z2 = p2
+
+	return  degrees(acos((x * x2 + y * y2 + z * z2) / 
+			(sqrt((x**2 + y**2 + z**2) * (x2**2 + y2**2 + z2**2)))))
+
+
+todayinsecs    = datetime.datetime.now().strftime('%Y.%m.%d.%H:%M:%S')
+today          = datetime.date.today().strftime('%Y.%m.%d')
+jd_today = Julian_Date(today, todayinsecs)
 print("Today's Julian Date is %s" % (jd_today))
 
 time    = np.linspace(0, 2459110, 1000)
@@ -107,6 +141,28 @@ ax = fig.add_subplot(111, projection='3d')
 # print(X, Y, Z)
 ax.plot(X, Y, Z)
 
-plt.show()
+# for x, y, z in zip(X,Y,Z):
+# 	print("%s %s %s" % (x,y,z))
+
+# plt.show()
+
+
+
+g = geocoder.ip('me')
+latitude, longitude = g.latlng
+
+x,y,z = conv_lat_long_to_rect_coords(latitude, longitude)
+
+suns_position = position_of_sun(jd_today, method='rectangular_equatorial')
+
+print("My current position is %s %s %s" % (x,y,z))
+print("The suns current position is ", suns_position)
+
+print("The angle between me and the sun is %s degrees" % 
+		(angle_between_points((x,y,z), suns_position)))
+
+todays_declination = position_of_sun(jd_today, method='declination')
+
+print('The suns declination in respect to earths equator is %s degrees' % (todays_declination))
 	
 
